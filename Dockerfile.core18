@@ -1,19 +1,39 @@
 FROM ubuntu:bionic
 
-RUN apt-get update && \
-  apt-get dist-upgrade --yes && \
-  apt-get install --yes \
-  curl sudo jq squashfs-tools && \
-  curl -L $(curl -H 'X-Ubuntu-Series: 16' 'https://api.snapcraft.io/api/v1/snaps/details/core' | jq '.download_url' -r) --output core.snap && \
-  mkdir -p /snap/core && unsquashfs -d /snap/core/current core.snap && rm core.snap && \
-  curl -L $(curl -H 'X-Ubuntu-Series: 16' 'https://api.snapcraft.io/api/v1/snaps/details/core18' | jq '.download_url' -r) --output core18.snap && \
-  mkdir -p /snap/core18 && unsquashfs -d /snap/core18/current core18.snap && rm core18.snap && \
-  curl -L $(curl -H 'X-Ubuntu-Series: 16' 'https://api.snapcraft.io/api/v1/snaps/details/snapcraft?channel=stable' | jq '.download_url' -r) --output snapcraft.snap && \
-  mkdir -p /snap/snapcraft && unsquashfs -d /snap/snapcraft/current snapcraft.snap && rm snapcraft.snap && \
-  apt remove --yes --purge curl jq squashfs-tools && \
-  apt-get autoclean --yes && \
-  apt-get clean --yes
+# Grab dependencies
+RUN apt update
+RUN apt dist-upgrade --yes
+RUN apt install --yes curl sudo jq squashfs-tools locales
+RUN apt-mark auto curl jq squashfs-tools
+
+# Grab the core snap from the stable channel, unpack it in the proper place, and then delete the snap
+RUN curl -L $(curl -H 'X-Ubuntu-Series: 16' 'https://api.snapcraft.io/api/v1/snaps/details/core' | jq '.download_url' -r) --output core.snap
+RUN mkdir -p /snap/core
+RUN unsquashfs -d /snap/core/current core.snap
+RUN rm core.snap
+
+# Grab the core18 snap from the stable channel, unpack it in the proper place, and then delete the snap
+RUN curl -L $(curl -H 'X-Ubuntu-Series: 16' 'https://api.snapcraft.io/api/v1/snaps/details/core18' | jq '.download_url' -r) --output core18.snap
+RUN mkdir -p /snap/core18
+RUN unsquashfs -d /snap/core18/current core18.snap
+RUN rm core18.snap
+
+# Grab the snapcraft snap from the stable channel, unpack it in the proper place, and then delete the snap
+RUN curl -L $(curl -H 'X-Ubuntu-Series: 16' 'https://api.snapcraft.io/api/v1/snaps/details/snapcraft?channel=stable' | jq '.download_url' -r) --output snapcraft.snap
+RUN mkdir -p /snap/snapcraft
+RUN unsquashfs -d /snap/snapcraft/current snapcraft.snap
+RUN rm snapcraft.snap
+
+# Clean up
+RUN apt autoremove --yes
+RUN apt autoclean
+RUN apt clean
 
 COPY snapcraft-wrapper /snap/bin/snapcraft
 
+# Generate locales and set the proper environment
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 ENV PATH=/snap/bin:$PATH
